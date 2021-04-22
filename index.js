@@ -10,16 +10,24 @@ const SESSION_FILE_PATH = './session.json';
 let ws;
 let dataSession;
 
+/**
+ * Verificamos se salvamos as credenciais para fazer o login 
+ * esta etapa evita verificar novamente o QRCODE
+ */
 const withSession = () => {
     dataSession = require(SESSION_FILE_PATH);
     ws = new Client({ session: dataSession });
     ws.on('ready', () => console.log('Cliente está pronto!'));
     ws.on('auth_failure', () => {
         console.log('** O erro de autenticação regenera o QRCODE (Excluir o arquivo session.json) **');
+        fs.unlinkSync('./session.json');
     })
     ws.initialize();
 }
 
+/**
+ * Geramos um QRCODE para iniciar a sessão
+ */
 const withOutSession = () => {
     ws = new Client();
     // Geramos o QRCODE no Terminal
@@ -27,6 +35,7 @@ const withOutSession = () => {
     ws.on('ready', () => console.log('Cliente está pronto!'));
     ws.on('auth_failure', () => {
         console.log('** O erro de autenticação regenera o QRCODE (Excluir o arquivo session.json) **');
+        fs.unlinkSync('./session.json');
     })
     ws.on('authenticated', (session) => {
         dataSession = session;
@@ -42,21 +51,28 @@ const withOutSession = () => {
 */
 (fs.existsSync(SESSION_FILE_PATH)) ? withSession() : withOutSession();
 
- // Enviar mensajes
+/**
+ * Enviamos uma mensagem simples (texto) ao nosso cliente
+ * @param {*} number 
+ */
 const sendMessage = (number = null, text = null) => {
     number = number.replace('@c.us', '');
     number = `${number}@c.us`
     const message = text || `Olá, eu sou um BOT`;
     ws.sendMessage(number, message);
 }
-// Enviar mensajes Multimidia
-const sendMessageMedia = (number, fileName, caption = null) => {
+
+/**
+ * Enviamos arquivos multimídia para nosso cliente
+ * @param {*} number
+ * @param {*} fileName
+ * @param {*} caption
+ */
+const sendMessageMedia = (number, fileName, caption) => {
     number = number.replace('@c.us', '');
     number = `${number}@c.us`
-    const media = MessageMedia.fromFilePath(`./media/${fileName}`);
-    const text;
-    if (caption) text = { caption };
-    ws.sendMessage(number, media, text);
+    const media = MessageMedia.fromFilePath(`./media/${fileName}`)
+    ws.sendMessage(number, media, { caption: caption });
 }
 
 // API
@@ -73,7 +89,7 @@ const sendText = (req, res) => {
 
 const sendMidia = (req, res) => {
     const { number, fileName, caption } = req.body
-    sendMessageMedia(number, message)
+    sendMessageMedia(number, fileName, caption)
     res.send({ status: 'Enviado mensagem multimidia!' })
 }
 
